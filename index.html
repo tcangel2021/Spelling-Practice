@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Practice Spelling - Interactive Classroom Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --font-display: 'Fredoka', cursive, sans-serif;
+            --font-body: 'Nunito', sans-serif;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary: #06b6d4;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: #f0fdf4;
+            background-image: 
+                radial-gradient(#cbd5e1 1.5px, transparent 1.5px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.88), rgba(240, 253, 244, 0.92)),
+                url('https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1920&q=80');
+            background-size: 30px 30px, 100% 100%, cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, .font-display {
+            font-family: var(--font-display);
+        }
+
+        /* Glassmorphism UI Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 4px solid #ffffff;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 0 15px rgba(99, 102, 241, 0.05);
+        }
+
+        .btn-bounce {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .btn-bounce:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 25px -5px rgba(0,0,0,0.15);
+        }
+        .btn-bounce:active {
+            transform: translateY(1px) scale(0.98);
+        }
+
+        /* Interactive Slots and Letter Tiles */
+        .tile-slot {
+            width: clamp(52px, 8vw, 76px);
+            height: clamp(56px, 9vw, 82px);
+            border: 3.5px dashed #a5b4fc;
+            background-color: #f8fafc;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            color: #4338ca;
+            transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
+            position: relative;
+        }
+
+        .tile-slot.drag-over {
+            border-color: #6366f1;
+            background-color: #e0e7ff;
+            transform: scale(1.08);
+            box-shadow: 0 0 18px rgba(99, 102, 241, 0.4);
+        }
+
+        .tile-slot.filled {
+            border-style: solid;
+            border-color: #10b981;
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            color: #047857;
+            box-shadow: 0 8px 15px -3px rgba(16, 185, 129, 0.25);
+        }
+
+        .letter-tile {
+            width: clamp(52px, 8vw, 76px);
+            height: clamp(56px, 9vw, 82px);
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #ffffff;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            cursor: grab;
+            box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.4), inset 0 2px 0 rgba(255,255,255,0.3);
+            touch-action: none;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
+            will-change: transform;
+            z-index: 10;
+        }
+
+        .letter-tile.dragging {
+            cursor: grabbing;
+            opacity: 0.9;
+            z-index: 9999 !important;
+            box-shadow: 0 20px 30px -5px rgba(79, 70, 229, 0.6);
+            transition: none !important;
+        }
+
+        .letter-tile.selected {
+            outline: 4px solid #f59e0b;
+            transform: translateY(-6px);
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .letter-tile.disabled {
+            opacity: 0.25;
+            pointer-events: none;
+            filter: grayscale(80%);
+        }
+
+        /* Keyframe Animations */
+        @keyframes shake-anim {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake-anim 0.4s ease-in-out;
+        }
+
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 2.5s infinite ease-in-out;
+        }
+
+        /* Floating score feedback popup */
+        .score-float {
+            position: absolute;
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1.5rem;
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 100;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(0.8); }
+            50% { opacity: 1; transform: translateY(-25px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-45px) scale(1); }
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between min-h-screen text-slate-800 antialiased selection:bg-indigo-200">
+
+    <!-- TOP NAVIGATION HEADER -->
+    <header class="w-full bg-white/90 backdrop-blur-md border-b-4 border-indigo-500 shadow-sm sticky top-0 z-40 px-4 py-3 md:px-8">
+        <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="returnHome()">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-2xl shadow-md transform hover:rotate-6 transition-transform">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="font-display text-2xl md:text-3xl font-bold tracking-wide text-indigo-900 leading-none">Practice Spelling</h1>
+                    <span class="text-xs font-bold text-indigo-500 tracking-wider uppercase">Interactive Classroom Studio</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 md:gap-3">
+                <div id="syncBadge" class="hidden sm:flex items-center gap-1.5 bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full text-xs font-bold border border-emerald-300">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span>Ready Offline</span>
+                </div>
+                <button onclick="toggleSound()" id="soundToggleBtn" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition-colors font-bold text-sm flex items-center gap-1" title="Toggle Sound">
+                    <span id="soundIcon">🔊</span>
+                </button>
+                <button onclick="toggleFullScreen()" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition-colors font-bold text-sm hidden md:flex items-center gap-1" title="Toggle Fullscreen">
+                    <span>⛶</span>
+                </button>
+                <button onclick="openSettings()" class="btn-bounce bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-2xl shadow-md text-sm md:text-base flex items-center gap-2">
+                    <span>⚙️</span>
+                    <span class="hidden sm:inline">Settings</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="w-full max-w-5xl mx-auto px-4 py-6 md:py-8 flex-1 flex flex-col items-center justify-center">
+
+        <!-- 1. HOME SCREEN -->
+        <section id="homeScreen" class="w-full max-w-3xl glass-card rounded-3xl p-6 md:p-10 text-center animate-fade-in">
+            <div class="inline-block bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm mb-4">
+                ✨ Elementary Vocabulary & Spelling Builder
+            </div>
+            <h2 class="font-display text-3xl md:text-5xl font-extrabold text-slate-800 mb-3 leading-tight">
+                Listen, Drag & Master!
+            </h2>
+            <p class="text-slate-600 text-base md:text-lg mb-8 max-w-xl mx-auto">
+                Drag the correct letters into the boxes! Earn <strong>2 points</strong> on your 1st try, and <strong>1 point</strong> on subsequent tries.
+            </p>
+
+            <div class="bg-indigo-50/80 border-2 border-indigo-200 rounded-2xl p-4 md:p-6 mb-8 text-left shadow-inner">
+                <label for="homeCategorySelect" class="block font-display text-lg font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                    <span>📁 Target Vocabulary Set</span>
+                </label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <select id="homeCategorySelect" onchange="onCategorySelectChange(this.value)" class="flex-1 bg-white text-slate-800 font-bold text-base md:text-lg px-4 py-3.5 rounded-xl border-2 border-indigo-300 focus:outline-none focus:border-indigo-600 shadow-sm cursor-pointer">
+                    </select>
+                    <button onclick="openSettings()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-5 py-3.5 rounded-xl border-2 border-indigo-300 transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+                        <span>✏️ Manage Words</span>
+                    </button>
+                </div>
+                <div id="categoryWordPreview" class="mt-3 text-xs md:text-sm font-semibold text-slate-500 truncate">
+                </div>
+            </div>
+
+            <!-- Game Mode Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <!-- Game A -->
+                <button onclick="launchGame('A')" class="btn-bounce bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-2xl p-6 text-left shadow-lg border-2 border-indigo-400 flex flex-col justify-between h-48 group">
+                    <div>
+                        <span class="inline-block bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-lg mb-2">GAME A</span>
+                        <h3 class="font-display text-xl font-bold leading-snug">Fill Missing Letters</h3>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <span class="text-xs text-indigo-100">Drag or tap missing letters into order</span>
+                        <span class="text-3xl transform group-hover:scale-125 transition-transform">🧩</span>
+                    </div>
+                </button>
+
+                <!-- Game B -->
+                <button onclick="launchGame('B')" class="btn-bounce bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-2xl p-6 text-left shadow-lg border-2 border-teal-400 flex flex-col justify-between h-48 group">
+                    <div>
+                        <span class="inline-block bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-lg mb-2">GAME B</span>
+                        <h3 class="font-display text-xl font-bold leading-snug">Listen & Click</h3>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <span class="text-xs text-teal-100">Hear voice audio & identify correct spelling</span>
+                        <span class="text-3xl transform group-hover:scale-125 transition-transform">🎧</span>
+                    </div>
+                </button>
+
+                <!-- Game C -->
+                <button onclick="launchGame('C')" class="btn-bounce bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl p-6 text-left shadow-lg border-2 border-amber-400 flex flex-col justify-between h-48 group">
+                    <div>
+                        <span class="inline-block bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-lg mb-2">GAME C</span>
+                        <h3 class="font-display text-xl font-bold leading-snug">Form the Spelling</h3>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <span class="text-xs text-amber-100">Unscramble letters to construct target words</span>
+                        <span class="text-3xl transform group-hover:scale-125 transition-transform">🔤</span>
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. GAMEPLAY SCREEN -->
+        <section id="gameScreen" class="w-full max-w-4xl glass-card rounded-3xl p-5 md:p-8 text-center hidden">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b-2 border-slate-100">
+                <button onclick="returnHome()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
+                    <span>🏠 Home</span>
+                </button>
+                
+                <div class="flex items-center gap-3 font-display text-base md:text-lg font-bold">
+                    <span id="questionCountBadge" class="bg-indigo-100 text-indigo-800 px-3.5 py-1.5 rounded-full">Word 1 / 10</span>
+                    <span id="timerDisplay" class="bg-amber-100 text-amber-800 px-3.5 py-1.5 rounded-full hidden">⏱️ 30s</span>
+                    <span id="scoreDisplay" class="bg-emerald-100 text-emerald-800 px-3.5 py-1.5 rounded-full transition-transform">⭐ Score: 0</span>
+                </div>
+            </div>
+
+            <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden mb-8 border border-slate-200">
+                <div id="progressBarFill" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+
+            <!-- Dynamic Gameplay Stage -->
+            <div id="gameplayStage" class="min-h-[300px] flex flex-col items-center justify-center py-4 relative">
+            </div>
+        </section>
+
+    </main>
+
+    <!-- TEACHER SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="bg-indigo-600 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">⚙️</span>
+                    <h3 class="font-display text-2xl font-bold">Teacher Settings & Vocabulary</h3>
+                </div>
+                <button onclick="closeSettings()" class="text-white/80 hover:text-white text-3xl font-bold leading-none">&times;</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <h4 class="font-display text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <span>📁 Vocabulary Library & Category Sets</span>
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Active Set</label>
+                            <select id="settingsCategorySelect" onchange="switchVocabularySet(this.value)" class="w-full bg-white font-bold border-2 border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-indigo-600">
+                            </select>
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <button onclick="createNewCategory()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-4 py-2.5 rounded-xl text-sm flex-1">➕ New Set</button>
+                            <button onclick="deleteCurrentCategory()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-3 py-2.5 rounded-xl text-sm">🗑️ Delete</button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+                        <button onclick="exportVocabularyJSON()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5">
+                            <span>📤 Export Sets (.json)</span>
+                        </button>
+                        <button onclick="document.getElementById('importFileInput').click()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5">
+                            <span>📥 Import Sets (.json)</span>
+                        </button>
+                        <input type="file" id="importFileInput" class="hidden" accept=".json" onchange="importVocabularyJSON(event)">
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <h4 class="font-display text-lg font-bold text-slate-800 mb-2">Word List Editor (<span id="activeSetTitle">Number</span>)</h4>
+                    
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="newWordInput" placeholder="Add single target word..." class="flex-1 bg-white border-2 border-slate-300 rounded-xl px-3.5 py-2 font-medium text-slate-800 focus:outline-none focus:border-indigo-600">
+                        <button onclick="addSingleWord()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-xl text-sm">Add Word</button>
+                    </div>
+
+                    <div id="wordTagsCloud" class="bg-white p-3 rounded-xl border border-slate-200 min-h-[90px] max-h-[160px] overflow-y-auto flex flex-wrap gap-2 mb-4">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">📋 Bulk Paste Words (One word per line)</label>
+                        <textarea id="bulkPasteTextarea" rows="3" placeholder="one&#10;two&#10;three" class="w-full bg-white border-2 border-slate-300 rounded-xl p-3 text-sm font-mono text-slate-800 focus:outline-none focus:border-indigo-600"></textarea>
+                        <button onclick="processBulkPaste()" class="mt-2 bg-slate-700 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">📥 Process & Add Bulk Words</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <h4 class="font-display text-lg font-bold text-slate-800 mb-3">⏱️ Game Rules & Timers</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Timer</label>
+                            <select id="timerOptionSelect" class="w-full bg-white font-bold border-2 border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800">
+                                <option value="0">None (Untimed)</option>
+                                <option value="10">10 Seconds</option>
+                                <option value="20">20 Seconds</option>
+                                <option value="30" selected>30 Seconds</option>
+                                <option value="60">1 Minute</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Question Limit</label>
+                            <select id="questionLimitSelect" class="w-full bg-white font-bold border-2 border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800">
+                                <option value="5">5 Questions</option>
+                                <option value="10" selected>10 Questions</option>
+                                <option value="15">15 Questions</option>
+                                <option value="999">All Words in Set</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Game A Missing Letters</label>
+                            <select id="missingLettersSelect" class="w-full bg-white font-bold border-2 border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800">
+                                <option value="1" selected>1 Missing Letter</option>
+                                <option value="2">2 Missing Letters</option>
+                                <option value="3">3 Missing Letters</option>
+                                <option value="4">4 Missing Letters</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 px-6 py-4 flex justify-end">
+                <button onclick="closeSettings()" class="btn-bounce bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-2.5 rounded-xl text-base shadow-md">
+                    💾 Save & Apply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) this.ctx = new AudioContext();
+                }
+            }
+
+            playCorrect() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+
+            playIncorrect() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now); // A3
+                osc.frequency.linearRampToValueAtTime(140, now + 0.25);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playPop() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.06);
+            }
+        }
+
+        const soundFX = new SoundEngine();
+
+        function toggleSound() {
+            soundFX.enabled = !soundFX.enabled;
+            document.getElementById('soundIcon').textContent = soundFX.enabled ? '🔊' : '🔇';
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(()=>{});
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+    </script>
+
+    <script>
+        const DEFAULT_LIBRARY = {
+            "Number": ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"],
+            "Weather": ["sunny", "rainy", "cloudy", "windy", "snowy", "stormy", "warm", "cold"],
+            "Feelings": ["happy", "sad", "angry", "scared", "excited", "tired", "brave", "calm"],
+            "Animals": ["cat", "dog", "tiger", "elephant", "monkey", "rabbit", "lion", "zebra", "giraffe"],
+            "Food": ["apple", "banana", "bread", "cheese", "pizza", "cookie", "milk", "carrot"],
+            "School Things": ["pencil", "book", "eraser", "ruler", "desk", "paper", "crayon", "marker"]
+        };
+
+        let vocabLibrary = { ...DEFAULT_LIBRARY };
+        let activeCategory = "Number";
+        let activeGameMode = "A";
+        let sessionQuestions = [];
+        let sessionIndex = 0;
+        let sessionScore = 0;
+        let gameTimerInterval = null;
+        let sessionTimeLeft = 30;
+
+        // Tracks slot attempts for scoring: slotAttempts[slotIndex] = count
+        let slotAttempts = {};
+        let selectedTileElement = null; // Buffer for tap-to-place fallback
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadLibraryFromStorage();
+            refreshCategoryDropdowns();
+        });
+
+        function loadLibraryFromStorage() {
+            try {
+                const savedLib = localStorage.getItem('practice_spelling_library_v2');
+                if (savedLib) {
+                    vocabLibrary = JSON.parse(savedLib);
+                }
+                const savedCat = localStorage.getItem('practice_spelling_active_cat_v2');
+                if (savedCat && vocabLibrary[savedCat]) {
+                    activeCategory = savedCat;
+                } else if (Object.keys(vocabLibrary).length > 0) {
+                    activeCategory = Object.keys(vocabLibrary)[0];
+                }
+            } catch (e) {}
+        }
+
+        function saveLibraryToStorage() {
+            try {
+                localStorage.setItem('practice_spelling_library_v2', JSON.stringify(vocabLibrary));
+                localStorage.setItem('practice_spelling_active_cat_v2', activeCategory);
+            } catch (e) {}
+        }
+
+        function refreshCategoryDropdowns() {
+            const homeSel = document.getElementById('homeCategorySelect');
+            const setSel = document.getElementById('settingsCategorySelect');
+            
+            homeSel.innerHTML = '';
+            setSel.innerHTML = '';
+
+            for (let catKey in vocabLibrary) {
+                const count = vocabLibrary[catKey].length;
+                
+                const opt1 = document.createElement('option');
+                opt1.value = catKey;
+                opt1.textContent = `${catKey} (${count} words)`;
+                if (catKey === activeCategory) opt1.selected = true;
+                homeSel.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = catKey;
+                opt2.textContent = `${catKey} (${count} words)`;
+                if (catKey === activeCategory) opt2.selected = true;
+                setSel.appendChild(opt2);
+            }
+
+            updateCategoryWordPreview();
+            renderWordTagsCloud();
+        }
+
+        function onCategorySelectChange(catKey) {
+            activeCategory = catKey;
+            saveLibraryToStorage();
+            refreshCategoryDropdowns();
+        }
+
+        function updateCategoryWordPreview() {
+            const previewEl = document.getElementById('categoryWordPreview');
+            const words = vocabLibrary[activeCategory] || [];
+            if (words.length > 0) {
+                previewEl.textContent = `Words (${words.length}): ` + words.slice(0, 10).join(', ') + (words.length > 10 ? '...' : '');
+            } else {
+                previewEl.textContent = 'No words in this category. Click Manage Words to add some!';
+            }
+            document.getElementById('activeSetTitle').textContent = activeCategory;
+        }
+
+        function openSettings() {
+            refreshCategoryDropdowns();
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            refreshCategoryDropdowns();
+        }
+
+        function switchVocabularySet(catKey) {
+            activeCategory = catKey;
+            saveLibraryToStorage();
+            updateCategoryWordPreview();
+            renderWordTagsCloud();
+        }
+
+        function createNewCategory() {
+            const name = prompt("Enter a name for the new vocabulary set:");
+            if (name && name.trim()) {
+                const cleanName = name.trim();
+                if (!vocabLibrary[cleanName]) {
+                    vocabLibrary[cleanName] = [];
+                    activeCategory = cleanName;
+                    saveLibraryToStorage();
+                    refreshCategoryDropdowns();
+                } else {
+                    alert("A set with this name already exists.");
+                }
+            }
+        }
+
+        function deleteCurrentCategory() {
+            const keys = Object.keys(vocabLibrary);
+            if (keys.length <= 1) {
+                alert("You must keep at least one vocabulary set.");
+                return;
+            }
+            if (confirm(`Are you sure you want to delete "${activeCategory}"?`)) {
+                delete vocabLibrary[activeCategory];
+                activeCategory = Object.keys(vocabLibrary)[0];
+                saveLibraryToStorage();
+                refreshCategoryDropdowns();
+            }
+        }
+
+        function addSingleWord() {
+            const input = document.getElementById('newWordInput');
+            const rawWord = input.value.trim().toLowerCase();
+            if (rawWord) {
+                if (!vocabLibrary[activeCategory]) vocabLibrary[activeCategory] = [];
+                if (!vocabLibrary[activeCategory].includes(rawWord)) {
+                    vocabLibrary[activeCategory].push(rawWord);
+                    saveLibraryToStorage();
+                    renderWordTagsCloud();
+                    input.value = '';
+                } else {
+                    alert("Word already exists in this set!");
+                }
+            }
+        }
+
+        function removeWordFromSet(word) {
+            if (vocabLibrary[activeCategory]) {
+                vocabLibrary[activeCategory] = vocabLibrary[activeCategory].filter(w => w !== word);
+                saveLibraryToStorage();
+                renderWordTagsCloud();
+            }
+        }
+
+        function renderWordTagsCloud() {
+            const cloud = document.getElementById('wordTagsCloud');
+            cloud.innerHTML = '';
+            const words = vocabLibrary[activeCategory] || [];
+            
+            if (words.length === 0) {
+                cloud.innerHTML = '<span class="text-slate-400 text-xs italic">No target words in this folder. Add one above!</span>';
+                return;
+            }
+
+            words.forEach(w => {
+                const tag = document.createElement('div');
+                tag.className = 'bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-sm';
+                tag.innerHTML = `<span>${w}</span><button onclick="removeWordFromSet('${w}')" class="text-rose-500 hover:text-rose-700 font-extrabold text-sm leading-none">&times;</button>`;
+                cloud.appendChild(tag);
+            });
+        }
+
+        function processBulkPaste() {
+            const text = document.getElementById('bulkPasteTextarea').value;
+            const lines = text.split('\n');
+            let addedCount = 0;
+            if (!vocabLibrary[activeCategory]) vocabLibrary[activeCategory] = [];
+
+            lines.forEach(line => {
+                const clean = line.trim().toLowerCase().replace(/[^a-z]/g, '');
+                if (clean && !vocabLibrary[activeCategory].includes(clean)) {
+                    vocabLibrary[activeCategory].push(clean);
+                    addedCount++;
+                }
+            });
+
+            saveLibraryToStorage();
+            renderWordTagsCloud();
+            document.getElementById('bulkPasteTextarea').value = '';
+            alert(`Processed and added ${addedCount} new words to "${activeCategory}"!`);
+        }
+
+        function exportVocabularyJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vocabLibrary, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `practice_spelling_vocabulary.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function importVocabularyJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedObj = JSON.parse(e.target.result);
+                    if (typeof importedObj === 'object' && importedObj !== null) {
+                        let validSets = 0;
+                        for (let key in importedObj) {
+                            if (Array.isArray(importedObj[key])) {
+                                vocabLibrary[key] = importedObj[key].map(w => String(w).toLowerCase().trim()).filter(Boolean);
+                                validSets++;
+                            }
+                        }
+                        if (validSets > 0) {
+                            activeCategory = Object.keys(importedObj)[0];
+                            saveLibraryToStorage();
+                            refreshCategoryDropdowns();
+                            alert(`Successfully imported ${validSets} vocabulary set(s)!`);
+                        }
+                    }
+                } catch(err) {
+                    alert("Failed to parse JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function speakWord(wordText) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(wordText);
+                utterance.rate = 0.82;
+                utterance.pitch = 1.0;
+                utterance.lang = 'en-US';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+    </script>
+
+    <script>
+        function launchGame(mode) {
+            activeGameMode = mode;
+            const wordList = vocabLibrary[activeCategory] || [];
+            
+            if (wordList.length === 0) {
+                alert(`The set "${activeCategory}" currently has no target words. Please add words in Settings first!`);
+                openSettings();
+                return;
+            }
+
+            const limitSetting = parseInt(document.getElementById('questionLimitSelect').value);
+            const shuffled = [...wordList].sort(() => 0.5 - Math.random());
+            sessionQuestions = limitSetting === 999 ? shuffled : shuffled.slice(0, Math.min(limitSetting, shuffled.length));
+
+            sessionIndex = 0;
+            sessionScore = 0;
+
+            document.getElementById('homeScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+
+            renderCurrentQuestion();
+        }
+
+        function returnHome() {
+            clearInterval(gameTimerInterval);
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('homeScreen').classList.remove('hidden');
+            refreshCategoryDropdowns();
+        }
+
+        function updateScoreDisplay() {
+            const scoreEl = document.getElementById('scoreDisplay');
+            scoreEl.textContent = `⭐ Score: ${sessionScore}`;
+            scoreEl.classList.add('scale-110');
+            setTimeout(() => scoreEl.classList.remove('scale-110'), 200);
+        }
+
+        function showFloatingScore(amount, x, y) {
+            const popup = document.createElement('div');
+            popup.className = `score-float ${amount > 1 ? 'text-emerald-600' : 'text-amber-600'}`;
+            popup.textContent = `+${amount} pt${amount > 1 ? 's' : ''}!`;
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+            document.body.appendChild(popup);
+            setTimeout(() => popup.remove(), 800);
+        }
+
+        function renderCurrentQuestion() {
+            clearInterval(gameTimerInterval);
+            selectedTileElement = null;
+            slotAttempts = {}; // Reset attempt counters for current word slots
+
+            if (sessionIndex >= sessionQuestions.length) {
+                renderCompletionScreen();
+                return;
+            }
+
+            document.getElementById('questionCountBadge').textContent = `Word ${sessionIndex + 1} / ${sessionQuestions.length}`;
+            updateScoreDisplay();
+
+            const pct = (sessionIndex / sessionQuestions.length) * 100;
+            document.getElementById('progressBarFill').style.width = `${pct}%`;
+
+            const timerDuration = parseInt(document.getElementById('timerOptionSelect').value);
+            const timerDisplay = document.getElementById('timerDisplay');
+            if (timerDuration > 0) {
+                sessionTimeLeft = timerDuration;
+                timerDisplay.textContent = `⏱️ ${sessionTimeLeft}s`;
+                timerDisplay.classList.remove('hidden');
+                gameTimerInterval = setInterval(() => {
+                    sessionTimeLeft--;
+                    timerDisplay.textContent = `⏱️ ${sessionTimeLeft}s`;
+                    if (sessionTimeLeft <= 0) {
+                        clearInterval(gameTimerInterval);
+                        soundFX.playIncorrect();
+                        advanceQuestionAfterDelay(false);
+                    }
+                }, 1000);
+            } else {
+                timerDisplay.classList.add('hidden');
+            }
+
+            const targetWord = sessionQuestions[sessionIndex].toLowerCase();
+            const stage = document.getElementById('gameplayStage');
+            stage.innerHTML = '';
+
+            if (activeGameMode === 'A') {
+                renderGameA(targetWord, stage);
+            } else if (activeGameMode === 'B') {
+                renderGameB(targetWord, stage);
+            } else if (activeGameMode === 'C') {
+                renderGameC(targetWord, stage);
+            }
+        }
+
+        // RENDER GAME A: MISSING LETTERS
+        function renderGameA(word, container) {
+            speakWord(word);
+            const missingCountSetting = parseInt(document.getElementById('missingLettersSelect').value) || 1;
+            const actualMissing = Math.min(missingCountSetting, Math.max(1, word.length - 1));
+
+            let hiddenIndices = [];
+            while (hiddenIndices.length < actualMissing) {
+                let idx = Math.floor(Math.random() * word.length);
+                if (!hiddenIndices.includes(idx)) hiddenIndices.push(idx);
+            }
+
+            let slotsWrapper = document.createElement('div');
+            slotsWrapper.className = 'flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-8';
+
+            let missingLettersList = [];
+
+            for (let i = 0; i < word.length; i++) {
+                let slot = document.createElement('div');
+                if (hiddenIndices.includes(i)) {
+                    slot.className = 'tile-slot target-slot';
+                    slot.dataset.correctLetter = word[i];
+                    slot.dataset.slotIndex = i;
+                    slot.dataset.isFilled = "false";
+                    slotAttempts[i] = 0; // Initialize attempts
+                } else {
+                    slot.className = 'tile-slot filled';
+                    slot.textContent = word[i];
+                    slot.dataset.isFilled = "true";
+                }
+                slotsWrapper.appendChild(slot);
+            }
+
+            let pool = [...missingLettersList];
+            const alpha = "abcdefghijklmnopqrstuvwxyz";
+            hiddenIndices.forEach(idx => pool.push(word[idx]));
+
+            while (pool.length < Math.max(6, hiddenIndices.length + 3)) {
+                let randChar = alpha[Math.floor(Math.random() * alpha.length)];
+                pool.push(randChar);
+            }
+            pool.sort(() => 0.5 - Math.random());
+
+            let bankWrapper = document.createElement('div');
+            bankWrapper.className = 'flex flex-wrap items-center justify-center gap-3 max-w-2xl';
+
+            pool.forEach((letter, pIdx) => {
+                let tile = createInteractiveTile(letter, `tile_a_${pIdx}`);
+                bankWrapper.appendChild(tile);
+            });
+
+            container.appendChild(slotsWrapper);
+            container.appendChild(bankWrapper);
+
+            attachSlotTapHandlers(slotsWrapper, checkGameACompletion);
+        }
+
+        function checkGameACompletion() {
+            const targetSlots = document.querySelectorAll('.target-slot');
+            let allCorrect = true;
+
+            targetSlots.forEach(slot => {
+                if (slot.dataset.isFilled !== "true") {
+                    allCorrect = false;
+                }
+            });
+
+            if (allCorrect) {
+                // Word completion bonus
+                sessionScore += 5;
+                updateScoreDisplay();
+                soundFX.playCorrect();
+                advanceQuestionAfterDelay(true);
+            }
+        }
+
+        // RENDER GAME B: LISTEN & CLICK
+        function renderGameB(word, container) {
+            speakWord(word);
+
+            let audioBtn = document.createElement('button');
+            audioBtn.className = 'btn-bounce bg-amber-500 hover:bg-amber-600 text-white font-display text-xl md:text-2xl font-bold px-8 py-4 rounded-full shadow-lg mb-8 flex items-center gap-3 animate-pulse-subtle';
+            audioBtn.innerHTML = `<span>🔊</span> <span>Listen to Word</span>`;
+            audioBtn.onclick = () => speakWord(word);
+
+            let choices = [word];
+            const alphabet = "abcdefghijklmnopqrstuvwxyz";
+
+            while (choices.length < 4) {
+                let arr = word.split('');
+                let pos = Math.floor(Math.random() * arr.length);
+                let randL = alphabet[Math.floor(Math.random() * alphabet.length)];
+                arr[pos] = randL;
+                let candidate = arr.join('');
+                if (!choices.includes(candidate)) choices.push(candidate);
+            }
+            choices.sort(() => 0.5 - Math.random());
+
+            let grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg';
+
+            choices.forEach(choice => {
+                let btn = document.createElement('button');
+                btn.className = 'btn-bounce bg-white border-4 border-indigo-200 hover:border-indigo-500 text-indigo-900 font-display text-2xl font-bold p-5 rounded-2xl shadow-sm text-center';
+                btn.textContent = choice;
+                btn.onclick = () => {
+                    if (choice === word) {
+                        sessionScore += 10;
+                        updateScoreDisplay();
+                        soundFX.playCorrect();
+                        advanceQuestionAfterDelay(true);
+                    } else {
+                        soundFX.playIncorrect();
+                        btn.classList.add('animate-shake', 'border-rose-400');
+                        setTimeout(() => btn.classList.remove('animate-shake'), 500);
+                    }
+                };
+                grid.appendChild(btn);
+            });
+
+            container.appendChild(audioBtn);
+            container.appendChild(grid);
+        }
+
+        // RENDER GAME C: FORM THE SPELLING
+        function renderGameC(word, container) {
+            speakWord(word);
+
+            let instructions = document.createElement('p');
+            instructions.className = 'font-display text-lg text-indigo-900 font-bold mb-4';
+            instructions.textContent = 'Drag or tap tiles to construct the spelling:';
+
+            let slotsWrapper = document.createElement('div');
+            slotsWrapper.className = 'flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-8';
+
+            for (let i = 0; i < word.length; i++) {
+                let slot = document.createElement('div');
+                slot.className = 'tile-slot target-slot';
+                slot.dataset.correctLetter = word[i];
+                slot.dataset.slotIndex = i;
+                slot.dataset.isFilled = "false";
+                slotAttempts[i] = 0;
+                slotsWrapper.appendChild(slot);
+            }
+
+            let scrambled = word.split('').sort(() => 0.5 - Math.random());
+            let bankWrapper = document.createElement('div');
+            bankWrapper.className = 'flex flex-wrap items-center justify-center gap-3 max-w-2xl';
+
+            scrambled.forEach((letter, sIdx) => {
+                let tile = createInteractiveTile(letter, `tile_c_${sIdx}`);
+                bankWrapper.appendChild(tile);
+            });
+
+            container.appendChild(instructions);
+            container.appendChild(slotsWrapper);
+            container.appendChild(bankWrapper);
+
+            attachSlotTapHandlers(slotsWrapper, checkGameCCompletion);
+        }
+
+        function checkGameCCompletion() {
+            const targetSlots = document.querySelectorAll('.target-slot');
+            let allFilled = true;
+
+            targetSlots.forEach(slot => {
+                if (slot.dataset.isFilled !== "true") {
+                    allFilled = false;
+                }
+            });
+
+            if (allFilled) {
+                sessionScore += 5; // Complete word bonus
+                updateScoreDisplay();
+                soundFX.playCorrect();
+                advanceQuestionAfterDelay(true);
+            }
+        }
+
+        // POINTER DRAG & DROP ENGINE WITH SCORING ATTEMPTS
+        function createInteractiveTile(letter, tileId) {
+            let tile = document.createElement('div');
+            tile.className = 'letter-tile';
+            tile.textContent = letter;
+            tile.dataset.letter = letter;
+            tile.id = tileId;
+
+            // TAP-TO-PLACE FALLBACK
+            tile.onclick = (e) => {
+                if (tile.classList.contains('disabled')) return;
+                soundFX.playPop();
+
+                if (selectedTileElement === tile) {
+                    tile.classList.remove('selected');
+                    selectedTileElement = null;
+                } else {
+                    if (selectedTileElement) selectedTileElement.classList.remove('selected');
+                    selectedTileElement = tile;
+                    tile.classList.add('selected');
+
+                    // Try auto-placing in first empty slot
+                    const openSlot = Array.from(document.querySelectorAll('.target-slot')).find(s => s.dataset.isFilled !== "true");
+                    if (openSlot) {
+                        processTilePlacement(tile, openSlot);
+                    }
+                }
+            };
+
+            // POINTER EVENTS REAL-TIME DRAGGING MECHANICS
+            let startX, startY, initialRect;
+
+            tile.onpointerdown = (e) => {
+                if (tile.classList.contains('disabled')) return;
+                
+                tile.setPointerCapture(e.pointerId);
+                initialRect = tile.getBoundingClientRect();
+                
+                startX = e.clientX;
+                startY = e.clientY;
+
+                tile.classList.add('dragging');
+                if (selectedTileElement) {
+                    selectedTileElement.classList.remove('selected');
+                    selectedTileElement = null;
+                }
+
+                const onPointerMove = (moveEvt) => {
+                    const dx = moveEvt.clientX - startX;
+                    const dy = moveEvt.clientY - startY;
+
+                    tile.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(1.15)`;
+
+                    // Collision checking for hover effects
+                    const tileRect = tile.getBoundingClientRect();
+                    const centerPointX = tileRect.left + tileRect.width / 2;
+                    const centerPointY = tileRect.top + tileRect.height / 2;
+
+                    document.querySelectorAll('.target-slot').forEach(slot => {
+                        const slotRect = slot.getBoundingClientRect();
+                        if (
+                            centerPointX >= slotRect.left &&
+                            centerPointX <= slotRect.right &&
+                            centerPointY >= slotRect.top &&
+                            centerPointY <= slotRect.bottom &&
+                            slot.dataset.isFilled !== "true"
+                        ) {
+                            slot.classList.add('drag-over');
+                        } else {
+                            slot.classList.remove('drag-over');
+                        }
+                    });
+                };
+
+                const onPointerUp = (upEvt) => {
+                    tile.releasePointerCapture(upEvt.pointerId);
+                    tile.removeEventListener('pointermove', onPointerMove);
+                    tile.removeEventListener('pointerup', onPointerUp);
+                    
+                    document.querySelectorAll('.target-slot').forEach(s => s.classList.remove('drag-over'));
+
+                    // Hit test for target slot
+                    const tileRect = tile.getBoundingClientRect();
+                    const centerPointX = tileRect.left + tileRect.width / 2;
+                    const centerPointY = tileRect.top + tileRect.height / 2;
+
+                    let droppedSlot = null;
+                    document.querySelectorAll('.target-slot').forEach(slot => {
+                        const slotRect = slot.getBoundingClientRect();
+                        if (
+                            centerPointX >= slotRect.left &&
+                            centerPointX <= slotRect.right &&
+                            centerPointY >= slotRect.top &&
+                            centerPointY <= slotRect.bottom &&
+                            slot.dataset.isFilled !== "true"
+                        ) {
+                            droppedSlot = slot;
+                        }
+                    });
+
+                    tile.classList.remove('dragging');
+
+                    if (droppedSlot) {
+                        processTilePlacement(tile, droppedSlot);
+                    } else {
+                        // Return tile back to original origin
+                        tile.style.transform = 'translate3d(0, 0, 0)';
+                    }
+                };
+
+                tile.addEventListener('pointermove', onPointerMove);
+                tile.addEventListener('pointerup', onPointerUp);
+            };
+
+            return tile;
+        }
+
+        // TILE PLACEMENT EVALUATOR WITH SCORING ATTEMPTS
+        function processTilePlacement(tile, slot) {
+            const letter = tile.dataset.letter;
+            const correctLetter = slot.dataset.correctLetter;
+            const slotIdx = slot.dataset.slotIndex;
+
+            if (letter === correctLetter) {
+                // CORRECT PLACEMENT
+                slot.textContent = letter;
+                slot.classList.add('filled');
+                slot.dataset.isFilled = "true";
+
+                tile.classList.add('disabled');
+                tile.style.transform = 'translate3d(0, 0, 0)';
+                if (selectedTileElement === tile) selectedTileElement = null;
+
+                // Attempt-based scoring logic
+                const attempts = slotAttempts[slotIdx] || 0;
+                let pointsEarned = 0;
+
+                if (attempts === 0) {
+                    pointsEarned = 2; // 1st try = 2 points
+                } else {
+                    pointsEarned = 1; // 2nd+ try = 1 point
+                }
+
+                sessionScore += pointsEarned;
+                updateScoreDisplay();
+                soundFX.playCorrect();
+
+                // Show floating score indicator
+                const slotRect = slot.getBoundingClientRect();
+                showFloatingScore(pointsEarned, slotRect.left + slotRect.width / 2 - 15, slotRect.top - 10);
+
+                if (activeGameMode === 'A') checkGameACompletion();
+                if (activeGameMode === 'C') checkGameCCompletion();
+
+            } else {
+                // INCORRECT PLACEMENT
+                slotAttempts[slotIdx] = (slotAttempts[slotIdx] || 0) + 1;
+                soundFX.playIncorrect();
+
+                // Visual Feedback: Shake slot and return tile to bank
+                slot.classList.add('animate-shake', 'border-rose-400');
+                tile.style.transform = 'translate3d(0, 0, 0)';
+                
+                setTimeout(() => {
+                    slot.classList.remove('animate-shake', 'border-rose-400');
+                }, 400);
+            }
+        }
+
+        function attachSlotTapHandlers(slotsWrapper, completionCallback) {
+            const slots = slotsWrapper.querySelectorAll('.target-slot');
+            slots.forEach(slot => {
+                slot.onclick = () => {
+                    if (selectedTileElement && slot.dataset.isFilled !== "true") {
+                        processTilePlacement(selectedTileElement, slot);
+                    }
+                };
+            });
+        }
+
+        function advanceQuestionAfterDelay(isSuccess) {
+            clearInterval(gameTimerInterval);
+            sessionIndex++;
+            setTimeout(renderCurrentQuestion, 800);
+        }
+
+        function renderCompletionScreen() {
+            const stage = document.getElementById('gameplayStage');
+            document.getElementById('progressBarFill').style.width = '100%';
+
+            stage.innerHTML = `
+                <div class="py-6 animate-fade-in text-center">
+                    <span class="text-6xl mb-4 block animate-bounce">🎉</span>
+                    <h2 class="font-display text-4xl font-extrabold text-indigo-900 mb-2">Awesome Work!</h2>
+                    <p class="text-slate-600 text-lg mb-6">You completed all target words in <strong>${activeCategory}</strong>!</p>
+                    
+                    <div class="inline-block bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 mb-8 min-w-[240px]">
+                        <span class="block text-slate-500 font-bold uppercase text-xs">Final Earned Score</span>
+                        <span class="font-display text-5xl font-extrabold text-indigo-600">⭐ ${sessionScore} Points</span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-center gap-4">
+                        <button onclick="launchGame('${activeGameMode}')" class="btn-bounce bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3.5 rounded-2xl text-lg shadow-md">
+                            🔄 Play Again
+                        </button>
+                        <button onclick="returnHome()" class="btn-bounce bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-8 py-3.5 rounded-2xl text-lg">
+                            🏠 Home Menu
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
